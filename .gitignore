@@ -1,0 +1,34 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# ── Environment ──
+.env
+.venv/
+venv/
+
+# ── Model weights (large binaries) ──
+artifacts/*.pt
+model_best.pt
+
+# ── Node / Frontend ──
+node_modules/
+frontend/dist/
+
+# ── IDE ──
+.vscode/
+.idea/
+*.swp
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+
+# ── Keep tracked ──
+!artifacts/baseline_metrics.json
+!artifacts/plots/
