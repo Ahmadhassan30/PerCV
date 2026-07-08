@@ -6,10 +6,10 @@ import sys
 import os
 import argparse
 import json
+import csv
 from pathlib import Path
 import cv2
 import numpy as np
-import pandas as pd
 
 # Ensure repo root is importable
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -128,17 +128,19 @@ def main():
     # Run detection
     results = run_lane_detection(image_paths, CONFIG.task1)
 
-    # Save detailed CSV
-    csv_rows = []
-    for preset_label, details in results["results_by_preset"].items():
-        for d in details:
-            csv_rows.append({
-                "image_name": Path(d["image_path"]).name,
-                "preset": preset_label,
-                "lines_detected": d["num_lines"],
-                "quality_score": d["quality_score"]
-            })
-    pd.DataFrame(csv_rows).to_csv(output_dir / "quality_scores.csv", index=False)
+    # Save detailed CSV using built-in csv module
+    csv_path = output_dir / "quality_scores.csv"
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["image_name", "preset", "lines_detected", "quality_score"])
+        for preset_label, details in results["results_by_preset"].items():
+            for d in details:
+                writer.writerow([
+                    Path(d["image_path"]).name,
+                    preset_label,
+                    d["num_lines"],
+                    d["quality_score"]
+                ])
 
     # Save summary.json
     summary = {

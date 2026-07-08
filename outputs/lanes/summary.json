@@ -1,0 +1,8 @@
+{
+    "mean_quality_scores": {
+        "sensitive": 0.375,
+        "balanced": 0.375,
+        "strict": 0.375
+    },
+    "processed_frames": 20
+}
