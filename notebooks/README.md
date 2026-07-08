@@ -1,106 +1,168 @@
-# PerCV: Kaggle Computational Notebook Guide
+# PerCV: Computational Computer Vision & Neural Classification Benchmarking Pipeline
 
-This directory contains the Kaggle computational notebook `percv_kaggle.ipynb` for the **PerCV** project. This notebook runs the compute-heavy computer vision operations (edge detection, feature matching, progressive manual stitching, and CNN model training) using Kaggle's free GPU resources.
-
----
-
-## Getting Started
-
-### 1. Create a Kaggle Notebook
-1. Go to [Kaggle](https://www.kaggle.com/) and sign in.
-2. Click **New Notebook** (or **Create** -> **Notebook**).
-3. Set the Notebook options:
-   - **Accelerator**: Choose **GPU T4 x2** or **GPU P100** under settings (in the right panel under *Accelerator*).
-   - **Language**: Python.
-
-### 2. Import the Notebook File
-1. Download `percv_kaggle.ipynb` from this folder to your local machine.
-2. In your Kaggle notebook, click **File** -> **Import Notebook** in the top menu.
-3. Upload `percv_kaggle.ipynb`.
+This directory contains the core Kaggle computational notebook `percv_kaggle.ipynb` for the **PerCV** project. It is structured as a reproducible end-to-end computer vision experimentation and deep learning pipeline designed to benchmark classical image processing, descriptors, warping transforms, and deep neural backbones.
 
 ---
 
-## Configuring Dataset Inputs
+## 1. Overview & Architecture
 
-The notebook uses placeholder paths pointing to `/kaggle/input/...` for Tasks 1-3 images and the Task 4 classification dataset. Before execution, you must upload your images/datasets to Kaggle and update the corresponding path variables in the notebook.
+PerCV integrates classical computer vision techniques with modern deep learning paradigms. It targets four critical CV benchmarks and runs on Kaggle using GPU hardware acceleration.
 
-### 1. Uploading Images to Kaggle
-We recommend creating a private Kaggle Dataset to host your project images.
-1. Click **+ Add Data** (top right of the notebook editor).
-2. Choose **Upload a new dataset**, set a name (e.g. `percv-project-data`), and drag-and-drop the following assets:
-   - **Task 1**: At least 1 outdoor road perspective photograph (e.g., `road_view.jpg`).
-   - **Task 2**: A pair of overlapping photos of the same scene under slightly different viewpoints/lighting (e.g., `scene_left.jpg` and `scene_right.jpg`).
-   - **Task 3**: At least 3 horizontally overlapping photos of a wide scene (e.g., `view_left.jpg`, `view_middle.jpg`, and `view_right.jpg`).
-3. Click **Create** to upload.
-
-### 2. Uploading Task 4 Classification Dataset
-Upload your multi-class image folders as another Kaggle dataset. The root folder should contain subdirectories for each class:
 ```text
-dataset/
-├── class_a/
-│   ├── image_001.jpg
-│   └── ...
-├── class_b/
-│   ├── image_001.jpg
-│   └── ...
-└── class_c/
-    ├── image_001.jpg
-    └── ...
+            [ Input Scene Images ]
+                      │
+       ┌──────────────┼──────────────┐
+       ▼              ▼              ▼
+   [ Task 1 ]     [ Task 2 ]     [ Task 3 ]
+  Edge & Line        SIFT           SIFT
+   Detection       Matching      Matching
+       │              │              │
+       │              ▼              ▼
+       │         [ Evaluation ]  Homography
+       │          Lowe's Ratio    (RANSAC)
+       │         [0.6,0.75,0.9]      │
+       │              │              ▼
+       │              │          Perspective
+       │              │            Warping
+       │              │              │
+       │              │              ▼
+       │              │          [ Panorama ]
+       │              │         Alpha Blended
+       │              │
+       │              └──────────────┐
+       ▼                             ▼
+ [ Visual plots ]               [ Task 4 ]
+  & CSV Outputs             ResNet / MobileNet
+                             (Fine-Tuning)
+                                     │
+                                     ▼
+                               [ Evaluation ]
+                              Metrics & Heatmap
+                                 (Grad-CAM)
 ```
-1. Click **+ Add Data**, upload the directory structure, and click **Create**.
-
-### 3. Setting Paths in the Notebook
-After uploading, look at the **Input** section in Kaggle's right sidebar to copy the absolute paths of your uploaded files. Update the variables in **Step 2** and **Step 3** of the notebook:
-
-- **Task 1-3 Images** (in the Data Loading Cell):
-  ```python
-  TASK1_IMAGE_PATH = "/kaggle/input/<dataset-slug>/road_view.jpg"
-  TASK2_IMAGE1_PATH = "/kaggle/input/<dataset-slug>/scene_left.jpg"
-  TASK2_IMAGE2_PATH = "/kaggle/input/<dataset-slug>/scene_right.jpg"
-  TASK3_IMAGE_PATHS = [
-      "/kaggle/input/<dataset-slug>/view_left.jpg",
-      "/kaggle/input/<dataset-slug>/view_middle.jpg",
-      "/kaggle/input/<dataset-slug>/view_right.jpg"
-  ]
-  ```
-
-- **Task 4 Dataset** (in the Classification Data Loading Cell):
-  ```python
-  TASK4_DATASET_PATH = "/kaggle/input/<dataset-slug>/dataset_root"
-  ```
-
-> [!NOTE]
-> If these paths do not exist, the notebook automatically generates **synthetic, high-quality test inputs and shapes** for all tasks so you can run the notebook top-to-bottom as a dry run.
 
 ---
 
-## Executing the Notebook
-1. Click **Run All** (or press `Ctrl+F9`) to run the notebook top-to-bottom.
-2. Verify in the output of the first cell that PyTorch detects the active GPU device.
-3. Review the logs:
-   - Task 1 will plot edge outputs and save `task1_params.csv`.
-   - Task 2 will plot keypoints and SIFT match overlays.
-   - Task 3 will print estimated homographies, inlier ratios, and plot the alpha-blended panorama.
-   - Task 4 will output training epochs, verify whether the validation accuracy surpasses the threshold ($\ge 70\%$ to pass, $\ge 90\%$ for full marks), plot confusion matrices, and render Grad-CAM visual heatmaps.
+## 2. Pipeline Stages
+
+The pipeline consists of the following progressive modules:
+1. **Task 1 (Edge & Line Tracking)**: Applies Gaussian smoothing to filter pavement textures. Computes multi-threshold Canny edge configurations and fits probabilistic Hough lines to extract highway line segments.
+2. **Task 2 (SIFT Matching)**: Detects scale and rotation invariant keypoints. Explores the matching trade-offs under varying Lowe's ratio test thresholds ($0.60, 0.75, 0.90$) to assess the precision-recall envelope.
+3. **Task 3 (Panorama Assembly)**: progressive pairwise feature alignment. Solves homographies using RANSAC. Implements translation coordinate adjustments and manual distance-transform alpha blending to stitch 3 images without seam lines.
+4. **Task 4 (Neural Category Fine-Tuning)**: Loads a pretrained convolutional backbone (ResNet18 or MobileNetV2), locks backbone representations, and trains a linear classifier head. Runs Grad-CAM visualizations using PyTorch gradient retention hooks to audit model activation attention.
 
 ---
 
-## Retrieving Artifacts
+## 3. Benchmarking Datasets
 
-All figures, metrics, logs, and weights are saved in a structured `outputs/` directory in the Kaggle working space:
-- `outputs/metrics.json` (Single source of truth metrics for report compiling)
-- `outputs/training_curves.png` (CNN train/val loss and accuracy plots)
-- `outputs/confusion_matrix.png` (CNN performance confusion matrices)
-- `outputs/gradcam/` (6 Grad-CAM heatmap overlay figures)
-- `outputs/task1/` (Edge/Line detection pipeline images and parameters CSV)
-- `outputs/task2/` (SIFT keypoints, match figures, and parameters CSV)
-- `outputs/task3/` (Estimated homography JSON, params CSV, and stitched panorama)
+Every dataset in this pipeline represents the industry-standard benchmark for its specific computer vision task. Organize your inputs in the following directory layout:
 
-The final cell compresses this directory into a single archive:
-**`outputs/percv_artifacts.zip`**
+```text
+datasets/
+├── road_images/              # Task 1: BDD100K / TuSimple / CULane road samples (e.g. road_view.jpg)
+├── feature_pairs/            # Task 2: HPatches image pairs (e.g. scene_left.jpg, scene_right.jpg)
+├── panorama/                 # Task 3: OpenPano or custom overlapping photos (3 panels)
+└── scene_classification/     # Task 4: Intel Image Classification Dataset (subfolders: buildings, forest, mountain, street)
+```
 
-### Download via Kaggle UI
-1. Look at the **Output** folder in Kaggle's right sidebar (under `/kaggle/working`).
-2. Locate `outputs/percv_artifacts.zip`.
-3. Hover over the file, click the three dots, and choose **Download**.
-4. Unzip this file in your local environment; these artifacts will be consumed by the backend, frontend, and report writing tools.
+---
+
+## 4. Installation & Setup
+
+1. **Upload Datasets**: Upload the benchmark directories to Kaggle (e.g., as private datasets or using the Kaggle API).
+2. **Configure Accelerators**: Open your Kaggle Notebook editor, go to **Settings** -> **Accelerator**, and choose **GPU T4 x2** or **GPU P100**.
+3. **Import Notebook**: Download `percv_kaggle.ipynb` from this repository and upload it using **File** -> **Import Notebook** in Kaggle.
+
+---
+
+## 5. Configuration (`CONFIG`)
+
+The execution parameters are defined centrally in the `CONFIG` dictionary at the top of the notebook:
+
+```python
+CONFIG = {
+    "experiment_id": "experiment_001",
+    "seed": 42,
+    "output_root": "outputs",
+    
+    # Task Parameters
+    "gaussian_ksize": (5, 5),
+    "gaussian_sigma": 1.0,
+    "canny_threshold_pairs": [
+        {"low": 35, "high": 95, "label": "sensitive"},
+        {"low": 75, "high": 155, "label": "balanced"},
+        {"low": 125, "high": 245, "label": "strict"}
+    ],
+    "lowe_ratios": [0.60, 0.75, 0.90],
+    "default_lowe_ratio": 0.75,
+    "ransac_threshold": 5.0,
+    "stitching_min_matches": 10,
+    "distortion_det_threshold": 0.1,
+    
+    # CNN Parameters
+    "backbone": "resnet18",  # Options: 'resnet18' or 'mobilenetv2'
+    "batch_size": 32,
+    "epochs": 5,
+    "learning_rate": 0.001,
+    "weight_decay": 1e-4,
+    
+    # Dataset Paths
+    "dataset_paths": {
+        "road_images": "/kaggle/input/percv-road-images/road_view.jpg",
+        "feature_pairs": {
+            "img1": "/kaggle/input/percv-sift-images/scene_left.jpg",
+            "img2": "/kaggle/input/percv-sift-images/scene_right.jpg"
+        },
+        "panorama": [
+            "/kaggle/input/percv-stitch-images/view_left.jpg",
+            "/kaggle/input/percv-stitch-images/view_middle.jpg",
+            "/kaggle/input/percv-stitch-images/view_right.jpg"
+        ],
+        "scene_classification": "/kaggle/input/intel-image-classification/scene_dataset"
+    }
+}
+```
+
+*Note: If any dataset file or folder is missing at the specified paths during execution, the notebook raises a descriptive `FileNotFoundError` explaining what is expected.*
+
+---
+
+## 6. Output & Experiment Structure
+
+The notebook logs all parameters, weights, metrics, and plots under an experiment directory:
+
+```text
+outputs/
+├── experiments/
+│   └── experiment_001/
+│       ├── config.json         # Dump of CONFIG
+│       ├── metrics.json        # Compiled metrics & stage-wise timing
+│       ├── run_info.json       # Host, GPU, OS, random seed, library versions
+│       ├── plots/              # Figures (Canny, SIFT, Panorama, Confusion Matrix, Grad-CAM overlays)
+│       ├── models/             # Best model checkpoint weights (model_best.pt)
+│       └── reports/            # Detailed experiment json logs
+└── percv_artifacts.zip         # Compressed zip of all logs and plots
+```
+
+---
+
+## 7. Results & Performance Dashboard
+
+The final cell prints a pipeline execution dashboard containing:
+- Execution times for all pipeline modules and total duration.
+- Test accuracy, precision, recall, and F1-score for the active model configuration.
+- A **Neural Backbone Benchmark Dashboard** comparing accuracy, F1, parameters (M), model size (MB), speed (FPS), and training times between ResNet18 and MobileNetV2.
+
+---
+
+## 8. Future Work & Extensions
+- **Learned Features**: Benchmark SIFT against deep feature matching networks (e.g. SuperPoint + SuperGlue).
+- **Stitching Envelopes**: Implement cylindrical/spherical warping canvas steps to handle non-planar parallax.
+- **Explainability**: Integrate causal explainability modules such as Integrated Gradients or RISE.
+
+---
+
+## 9. References
+- Balntas, V., et al. (2017). *HPatches: A benchmark and evaluation of local descriptors.* CVPR.
+- Yu, F., et al. (2020). *BDD100K: A Diverse Driving Dataset for Heterogeneous Multitask Learning.* CVPR.
+- Selvaraju, R. R., et al. (2017). *Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization.* ICCV.
