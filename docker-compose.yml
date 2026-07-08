@@ -9,12 +9,21 @@ services:
       - ./artifacts:/app/artifacts
     environment:
       - PERCV_ARTIFACTS_DIR=/app/artifacts
+    healthcheck:
+      # Use python built-in urllib to check health to avoid curl system dependencies
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
 
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8000
     ports:
       - "3000:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
