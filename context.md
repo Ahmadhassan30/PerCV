@@ -17,10 +17,59 @@ The workspace is organized into a clean engineering layout:
 ```text
 PerCV/
 ├── notebooks/
-│   ├── percv_kaggle.ipynb     # Jupyter Notebook containing the end-to-end pipeline
-│   └── README.md              # Setup and execution guide for Kaggle
-├── context.md                 # Project context, technical specifications, and training log (this file)
-└── README.md                  # Main repository overview documentation
+│   ├── percv_kaggle.ipynb          # Trained Kaggle notebook (read-only)
+│   └── README.md                   # Kaggle setup guide
+├── context.md                       # Project specs & training log (this file)
+├── MANIFEST.md                      # Task → config → outputs → metrics index
+├── artifacts/
+│   ├── baseline_metrics.json        # Documented benchmark numbers
+│   └── plots/                       # Tracked plot outputs from Kaggle runs
+├── backend/
+│   ├── app/
+│   │   ├── main.py                  # FastAPI entry point
+│   │   ├── api/routes/
+│   │   │   ├── lanes.py             # Lane Detection endpoints
+│   │   │   ├── matching.py          # SIFT Matching endpoints
+│   │   │   ├── panorama.py          # Panorama Stitching endpoints
+│   │   │   ├── classify.py          # CNN Classification endpoints
+│   │   │   └── dashboard.py         # Serves MANIFEST/metrics to frontend
+│   │   ├── core/                    # Config loader, logging
+│   │   ├── services/                # Thin wrappers per task
+│   │   └── models/                  # Pydantic request/response schemas
+│   ├── tests/
+│   ├── Dockerfile
+│   └── pyproject.toml
+├── frontend/
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Overview.tsx
+│   │   │   ├── LaneDetection.tsx
+│   │   │   ├── FeatureMatching.tsx
+│   │   │   ├── Panorama.tsx
+│   │   │   └── Classification.tsx
+│   │   └── components/
+│   ├── package.json
+│   └── Dockerfile
+├── percv_cv/                         # Shared library — single source of truth
+│   ├── config.py                     # Typed PipelineConfig dataclass
+│   ├── lanes.py                      # Canny + Hough + quality score
+│   ├── matching.py                   # SIFT + Lowe ratio sweep
+│   ├── panorama.py                   # Homography + blend + autocrop
+│   ├── cnn.py                        # Model load / predict / eval
+│   └── gradcam.py                    # Hook-based Grad-CAM
+├── scripts/
+│   ├── run_lanes.py
+│   ├── run_matching.py
+│   ├── run_panorama.py
+│   ├── run_classify.py
+│   └── run_all.py                    # Regenerates artifacts for baseline diff
+├── report/
+│   └── critical_analysis.md          # Skeleton for human-written analysis
+├── docs/images/                       # README hero images, demo GIFs
+├── .github/workflows/ci.yml
+├── docker-compose.yml
+├── .gitignore
+└── README.md
 ```
 
 ---
