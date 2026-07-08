@@ -9,11 +9,7 @@ PerCV is a computer vision and deep learning benchmarking platform that integrat
 
 ---
 
-## 📷 Frontend Dashboard Hero
-
-> **TODO (For Human Developer)**: Run `docker compose up --build`, open your browser to `http://localhost:3000/`, capture a screenshot of the main Overview page, and replace the placeholder below with your visual asset.
->
-> ![PerCV Overview Page Placeholder](./docs/images/overview_dashboard.png)
+![PerCV Overview Dashboard Screenshot](./docs/images/overview_dashboard.png)
 
 ---
 

@@ -8,8 +8,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/pyproject.toml .
-# Install packages to a custom directory to copy later
+# Upgrade pip and install standard packaging tools
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+COPY backend/pyproject.toml ./
+COPY percv_cv/ ./percv_cv/
+COPY backend/app/ ./app/
+
+# Install the project and dependencies to a custom prefix directory
 RUN pip install --no-cache-dir --prefix=/install .
 
 # === Stage 2: Runner ===

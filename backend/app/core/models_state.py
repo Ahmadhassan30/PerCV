@@ -25,9 +25,20 @@ def init_models():
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    # Paths to search for checkpoints
-    resnet_candidates = ["model_best.pt", "outputs/experiments/experiment_001/models/model_best.pt"]
-    mobilenet_candidates = ["model_mobilenetv2.pt", "outputs/experiments/experiment_001/models/model_mobilenetv2.pt"]
+    from pathlib import Path
+    project_root = Path(__file__).resolve().parents[2]
+    
+    # Paths to search for checkpoints relative to project root
+    resnet_candidates = [
+        project_root / "model_best.pt",
+        project_root / "outputs/experiments/experiment_001/models/model_best.pt",
+        project_root / "artifacts/model_best.pt"
+    ]
+    mobilenet_candidates = [
+        project_root / "model_mobilenetv2.pt",
+        project_root / "outputs/experiments/experiment_001/models/model_mobilenetv2.pt",
+        project_root / "artifacts/model_mobilenetv2.pt"
+    ]
 
     # 1. Try to load ResNet18
     resnet_path = None
