@@ -1,0 +1,50 @@
+{
+    "task1": {
+        "mean_quality_score": 0.1809,
+        "processed_frames": 20,
+        "duration_sec": 3.521
+    },
+    "task2": {
+        "sequence": "i_ajuntament",
+        "matches_at_0_75": 348,
+        "inlier_ratio_at_0_75": 0.4462,
+        "duration_sec": 2.171
+    },
+    "task3": {
+        "scene": "front",
+        "left_to_middle": {
+            "total_matches_after_lowe": 1210,
+            "ransac_inliers": 1044,
+            "inlier_ratio": 0.8628
+        },
+        "right_to_middle": {
+            "total_matches_after_lowe": 3532,
+            "ransac_inliers": 3142,
+            "inlier_ratio": 0.8896
+        },
+        "average_inlier_ratio": 0.8762
+    },
+    "task4": {
+        "active_backbone": "resnet18",
+        "test_accuracy": 0.9277,
+        "macro_f1": 0.9262,
+        "inference_fps": 118.78,
+        "inference_duration_sec": 16.307,
+        "resnet18": {
+            "accuracy": 0.9277,
+            "f1_score": 0.9262,
+            "params_m": 11.18,
+            "size_mb": 42.7,
+            "speed_fps": 118.8,
+            "train_time_sec": 205.0
+        },
+        "mobilenetv2": {
+            "accuracy": 0.9280,
+            "f1_score": 0.9270,
+            "params_m": 2.23,
+            "size_mb": 8.9,
+            "speed_fps": 285.0,
+            "train_time_sec": 32.8
+        }
+    }
+}
