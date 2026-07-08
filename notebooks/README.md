@@ -46,38 +46,52 @@ PerCV integrates classical computer vision techniques with modern deep learning 
 ## 2. Pipeline Stages
 
 The pipeline consists of the following progressive modules:
-1. **Task 1 (Edge & Line Tracking)**: Applies Gaussian smoothing to filter pavement textures. Computes multi-threshold Canny edge configurations and fits probabilistic Hough lines to extract highway line segments.
-2. **Task 2 (SIFT Matching)**: Detects scale and rotation invariant keypoints. Explores the matching trade-offs under varying Lowe's ratio test thresholds ($0.60, 0.75, 0.90$) to assess the precision-recall envelope.
-3. **Task 3 (Panorama Assembly)**: progressive pairwise feature alignment. Solves homographies using RANSAC. Implements translation coordinate adjustments and manual distance-transform alpha blending to stitch 3 images without seam lines.
-4. **Task 4 (Neural Category Fine-Tuning)**: Loads a pretrained convolutional backbone (ResNet18 or MobileNetV2), locks backbone representations, and trains a linear classifier head. Runs Grad-CAM visualizations using PyTorch gradient retention hooks to audit model activation attention.
+1. **Task 1 (Edge & Line Tracking)**: Loads BDD100K road images, applies Gaussian smoothing to filter pavement textures. Computes Canny edge comparisons and fits probabilistic Hough lines to extract highway line segments. Evaluates quality scores across a batch of 20 images to output mean/std stats.
+2. **Task 2 (SIFT Matching)**: Evaluates matching trade-offs under varying Lowe's ratio test thresholds ($0.60, 0.75, 0.90$) using SIFT descriptors extracted from HPatches sequences to assess the precision-recall envelope.
+3. **Task 3 (Panorama Assembly)**: progressive pairwise feature alignment on 3 overlapping images from the panorama scene directory (sorted alphabetically). Solves homographies using RANSAC. Implements translation adjustments and manual distance-transform alpha blending to stitch frames without seams.
+4. **Task 4 (Neural Category Fine-Tuning)**: Loads training/testing directories dynamically from the Intel dataset. Filters subfolders to target categories (`buildings`, `forest`, `mountain`, `street`) and fine-tunes a ResNet18/MobileNetV2 classifier head. Runs Grad-CAM visualizations on correct and incorrect/low-confidence test samples using PyTorch hooks.
 
 ---
 
 ## 3. Benchmarking Datasets
 
-Every dataset in this pipeline represents the industry-standard benchmark for its specific computer vision task. Organize your inputs in the following directory layout:
+Every dataset in this pipeline represents the industry-standard benchmark for its specific computer vision task. Attach these datasets in your Kaggle notebook sidebar:
 
-```text
-datasets/
-├── road_images/              # Task 1: BDD100K / TuSimple / CULane road samples (e.g. road_view.jpg)
-├── feature_pairs/            # Task 2: HPatches image pairs (e.g. scene_left.jpg, scene_right.jpg)
-├── panorama/                 # Task 3: OpenPano or custom overlapping photos (3 panels)
-└── scene_classification/     # Task 4: Intel Image Classification Dataset (subfolders: buildings, forest, mountain, street)
-```
+- **BDD100K** (Road images)
+- **HPatches Sequence Release** (Feature matching pairs)
+- **panorama** (Image stitching sequence containing `back/`, `front/`, and `room/` scenes)
+- **Intel Image Classification** (Multi-class scene categories)
 
 ---
 
 ## 4. Installation & Setup
 
-1. **Upload Datasets**: Upload the benchmark directories to Kaggle (e.g., as private datasets or using the Kaggle API).
-2. **Configure Accelerators**: Open your Kaggle Notebook editor, go to **Settings** -> **Accelerator**, and choose **GPU T4 x2** or **GPU P100**.
+1. **Attach Datasets**: Under the **Data** pane in the right panel of the Kaggle notebook, click **+ Add Data** and search/attach the four datasets listed above.
+2. **Configure Accelerators**: Under **Settings** -> **Accelerator**, choose **GPU T4 x2** or **GPU P100**.
 3. **Import Notebook**: Download `percv_kaggle.ipynb` from this repository and upload it using **File** -> **Import Notebook** in Kaggle.
 
 ---
 
-## 5. Configuration (`CONFIG`)
+## 5. Dataset Path Discovery (`DatasetManager`)
 
-The execution parameters are defined centrally in the `CONFIG` dictionary at the top of the notebook:
+The notebook includes a dedicated **Dataset Discovery & Validation** cell containing a reusable `DatasetManager` class. 
+
+```python
+dm = DatasetManager(CONFIG.get("input_root", "/kaggle/input"))
+dm.print_dataset_tree(max_depth=2)
+dm.validate_and_report()
+```
+
+- **Dynamic Discovery**: Scans `/kaggle/input` recursively for keyword matches (`bdd`, `hpatches`, `panorama`, `intel`), mapping mounted folders automatically.
+- **Strict Validation**: Checks that all 4 datasets are attached. If any is missing, it raises a descriptive `FileNotFoundError` explaining which dataset is expected and how to attach it.
+- **Path Resolution**: Provides pathlib.Path objects for files, matching target parameters automatically (e.g. sequence retrieval, scene selection, and class filtering).
+- **Summary Dashboard**: Automatically compiles and displays a markdown table reporting loaded image counts, sequences, and scenes for confirmation.
+
+---
+
+## 6. Configuration Options (`CONFIG`)
+
+The pipeline execution parameters are defined centrally in the `CONFIG` dictionary at the top of the notebook:
 
 ```python
 CONFIG = {
@@ -86,48 +100,33 @@ CONFIG = {
     "output_root": "outputs",
     
     # Task Parameters
-    "gaussian_ksize": (5, 5),
-    "gaussian_sigma": 1.0,
-    "canny_threshold_pairs": [
-        {"low": 35, "high": 95, "label": "sensitive"},
-        {"low": 75, "high": 155, "label": "balanced"},
-        {"low": 125, "high": 245, "label": "strict"}
-    ],
-    "lowe_ratios": [0.60, 0.75, 0.90],
-    "default_lowe_ratio": 0.75,
-    "ransac_threshold": 5.0,
-    "stitching_min_matches": 10,
-    "distortion_det_threshold": 0.1,
-    
-    # CNN Parameters
-    "backbone": "resnet18",  # Options: 'resnet18' or 'mobilenetv2'
-    "batch_size": 32,
-    "epochs": 5,
-    "learning_rate": 0.001,
-    "weight_decay": 1e-4,
-    
-    # Dataset Paths
-    "dataset_paths": {
-        "road_images": "/kaggle/input/percv-road-images/road_view.jpg",
-        "feature_pairs": {
-            "img1": "/kaggle/input/percv-sift-images/scene_left.jpg",
-            "img2": "/kaggle/input/percv-sift-images/scene_right.jpg"
-        },
-        "panorama": [
-            "/kaggle/input/percv-stitch-images/view_left.jpg",
-            "/kaggle/input/percv-stitch-images/view_middle.jpg",
-            "/kaggle/input/percv-stitch-images/view_right.jpg"
-        ],
-        "scene_classification": "/kaggle/input/intel-image-classification/scene_dataset"
+    "task1": {
+        "num_images": 20,  # Number of BDD100K images to load and benchmark
+        "gaussian_ksize": (5, 5),
+        "gaussian_sigma": 1.0,
+        "canny_threshold_pairs": [...]
+    },
+    "task2": {
+        "lowe_ratios": [0.60, 0.75, 0.90],
+        "default_lowe_ratio": 0.75
+    },
+    "task3": {
+        "scene": "room",  # Switch between 'room', 'front', and 'back' to load different sequences
+        "ransac_threshold": 5.0
+    },
+    "task4": {
+        "backbone": "resnet18",  # Options: 'resnet18' or 'mobilenetv2'
+        "batch_size": 32,
+        "epochs": 5
     }
 }
 ```
 
-*Note: If any dataset file or folder is missing at the specified paths during execution, the notebook raises a descriptive `FileNotFoundError` explaining what is expected.*
+Changing `CONFIG["task3"]["scene"]` automatically updates the path mapping to load the corresponding panorama frames from `/kaggle/input/panorama/<scene>/*.jpg` sorted alphabetically.
 
 ---
 
-## 6. Output & Experiment Structure
+## 7. Output & Experiment Structure
 
 The notebook logs all parameters, weights, metrics, and plots under an experiment directory:
 
@@ -146,23 +145,9 @@ outputs/
 
 ---
 
-## 7. Results & Performance Dashboard
+## 8. Results & Performance Dashboard
 
 The final cell prints a pipeline execution dashboard containing:
 - Execution times for all pipeline modules and total duration.
 - Test accuracy, precision, recall, and F1-score for the active model configuration.
 - A **Neural Backbone Benchmark Dashboard** comparing accuracy, F1, parameters (M), model size (MB), speed (FPS), and training times between ResNet18 and MobileNetV2.
-
----
-
-## 8. Future Work & Extensions
-- **Learned Features**: Benchmark SIFT against deep feature matching networks (e.g. SuperPoint + SuperGlue).
-- **Stitching Envelopes**: Implement cylindrical/spherical warping canvas steps to handle non-planar parallax.
-- **Explainability**: Integrate causal explainability modules such as Integrated Gradients or RISE.
-
----
-
-## 9. References
-- Balntas, V., et al. (2017). *HPatches: A benchmark and evaluation of local descriptors.* CVPR.
-- Yu, F., et al. (2020). *BDD100K: A Diverse Driving Dataset for Heterogeneous Multitask Learning.* CVPR.
-- Selvaraju, R. R., et al. (2017). *Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization.* ICCV.
