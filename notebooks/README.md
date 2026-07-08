@@ -111,7 +111,7 @@ CONFIG = {
         "default_lowe_ratio": 0.75
     },
     "task3": {
-        "scene": "room",  # Switch between 'room', 'front', and 'back' to load different sequences
+        "scene": "front",  # Switch between 'room', 'front', and 'back' to load different sequences
         "ransac_threshold": 5.0
     },
     "task4": {
