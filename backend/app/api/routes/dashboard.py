@@ -8,7 +8,13 @@ from typing import Dict, Any
 
 router = APIRouter()
 
-ARTIFACTS_DIR = Path(__file__).resolve().parents[4] / "artifacts"
+import os
+
+ARTIFACTS_DIR_ENV = os.environ.get("PERCV_ARTIFACTS_DIR")
+if ARTIFACTS_DIR_ENV:
+    ARTIFACTS_DIR = Path(ARTIFACTS_DIR_ENV)
+else:
+    ARTIFACTS_DIR = Path(__file__).resolve().parents[4] / "artifacts"
 
 
 class DashboardResponse(BaseModel):
