@@ -1,0 +1,14 @@
+{
+    "left_to_middle": {
+        "total_matches": 170,
+        "inliers": 162,
+        "inlier_ratio": 0.9529411764705882,
+        "status": "SUCCESS"
+    },
+    "right_to_middle": {
+        "total_matches": 171,
+        "inliers": 156,
+        "inlier_ratio": 0.9122807017543859,
+        "status": "SUCCESS"
+    }
+}
