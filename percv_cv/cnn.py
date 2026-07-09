@@ -8,11 +8,18 @@ from __future__ import annotations
 import os
 import time
 import io
+import cv2
 import torch
 import torch.nn as nn
 from torchvision import models
 import numpy as np
 from typing import Dict, List, Tuple, Any, Optional
+
+# Confirmed model and preprocessing constants
+CLASS_NAMES = ["buildings", "forest", "mountain", "street"]
+INPUT_SIZE = (128, 128)
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD = [0.229, 0.224, 0.225]
 
 
 def build_model(backbone: str, num_classes: int) -> torch.nn.Module:
@@ -44,51 +51,99 @@ def build_model(backbone: str, num_classes: int) -> torch.nn.Module:
 
 
 def load_checkpoint(model: torch.nn.Module, path: str, device: str) -> torch.nn.Module:
-    """Loads state_dict checkpoint from disk, moves to device, sets to eval mode."""
+    """Loads state_dict checkpoint from disk (bare or wrapped), moves to device, sets to eval mode."""
     if not os.path.exists(path):
         raise FileNotFoundError(f"Checkpoint model path does not exist: {path}")
 
-    # Load weights with map_location
-    state_dict = torch.load(path, map_location=torch.device(device))
-    model.load_state_dict(state_dict)
+    loaded = torch.load(path, map_location=torch.device(device))
+    if isinstance(loaded, dict) and "state_dict" in loaded:
+        state_dict = loaded["state_dict"]
+    else:
+        state_dict = loaded
+
+    # Strip 'module.' prefix if present (from DataParallel training)
+    new_state_dict = {}
+    for k, v in state_dict.items():
+        if k.startswith("module."):
+            new_state_dict[k[7:]] = v
+        else:
+            new_state_dict[k] = v
+
+    model.load_state_dict(new_state_dict)
     model.to(device)
     model.eval()
     return model
 
 
-def predict(model: torch.nn.Module, image: np.ndarray, class_names: List[str]) -> Dict[str, Any]:
+def load_model(checkpoint_path: str, device: str = "cpu") -> torch.nn.Module:
+    """Builds the architecture and loads the checkpoint from the path (supporting both rich & bare formats)."""
+    if not os.path.exists(checkpoint_path):
+        raise FileNotFoundError(f"Checkpoint path does not exist: {checkpoint_path}")
+
+    loaded = torch.load(checkpoint_path, map_location=torch.device(device))
+    
+    # Determine backbone type (default to resnet18 if not metadata-wrapped)
+    backbone = "resnet18"
+    if isinstance(loaded, dict) and "backbone" in loaded:
+        backbone = loaded["backbone"]
+
+    model = build_model(backbone, len(CLASS_NAMES))
+    
+    if isinstance(loaded, dict) and "state_dict" in loaded:
+        state_dict = loaded["state_dict"]
+    else:
+        state_dict = loaded
+
+    # Strip 'module.' prefix if present
+    new_state_dict = {}
+    for k, v in state_dict.items():
+        if k.startswith("module."):
+            new_state_dict[k[7:]] = v
+        else:
+            new_state_dict[k] = v
+
+    model.load_state_dict(new_state_dict)
+    model.to(device)
+    model.eval()
+    return model
+
+
+def predict(model: torch.nn.Module, image: np.ndarray, class_names: Optional[List[str]] = None) -> Dict[str, Any]:
     """
     Predict the class and probabilities for a single BGR image.
 
     Args:
         model: Trained PyTorch model in eval mode.
         image: BGR image (H, W, 3).
-        class_names: List of class labels.
+        class_names: List of class labels (ignored in favor of fixed CLASS_NAMES).
 
     Returns:
         Dict containing predicted label, confidence, and full probs mapping.
     """
     device = next(model.parameters()).device
-    h_in, w_in = 128, 128
+    h_in, w_in = INPUT_SIZE
 
-    # Apply preprocessing matching val_tx
+    # Preprocessing must match training exactly
     img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     img_resized = cv2.resize(img_rgb, (w_in, h_in))
     img_norm = img_resized.astype(np.float32) / 255.0
-    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+    mean = np.array(IMAGENET_MEAN, dtype=np.float32)
+    std = np.array(IMAGENET_STD, dtype=np.float32)
     img_norm = (img_norm - mean) / std
     img_tensor = torch.from_numpy(img_norm).permute(2, 0, 1).unsqueeze(0).to(device)
+
+    # Ensure eval mode
+    model.eval()
 
     with torch.no_grad():
         outputs = model(img_tensor)
         probs = torch.softmax(outputs, dim=1).squeeze(0).cpu().numpy()
 
     pred_idx = int(np.argmax(probs))
-    probs_dict = {class_names[i]: float(probs[i]) for i in range(len(class_names))}
+    probs_dict = {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))}
 
     return {
-        "label": class_names[pred_idx],
+        "label": CLASS_NAMES[pred_idx],
         "confidence": float(probs[pred_idx]),
         "probs": probs_dict,
         "probs_list": probs.tolist()

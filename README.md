@@ -31,7 +31,8 @@ Below is the comparative backbone model dashboard table (reproduced from `contex
 | Backbone Model | Accuracy | F1-Score | Params (M) | Size (MB) | Speed (FPS) | Train Time (s) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | **resnet18** (ACTIVE) | 0.9277 | 0.9262 | 11.18 | 42.7 | 118.8 | 205.0 |
-| **mobilenetv2** | 0.9280 | 0.9270 | 2.23 | 8.9 | 285.0 | 32.8 |
+
+*\*Measured on Intel test split, Kaggle T4 GPU, backbone frozen / linear-probe only — see `notebooks/percv_kaggle.ipynb` cells 14–18.*
 
 ---
 
@@ -40,7 +41,7 @@ Below is the comparative backbone model dashboard table (reproduced from `contex
 1. **SIFT over ORB for SIFT Matching**: SIFT (Scale-Invariant Feature Transform) was selected over ORB (Oriented FAST and Rotated BRIEF) for HPatches matching because of its superior invariance to severe illumination and scale variations. While ORB is computationally faster, SIFT yields a more stable distribution of descriptors under perspective transformations.
 2. **RANSAC Threshold of 5.0 for Panorama**: A RANSAC reprojection error threshold of 5.0 pixels was selected to balance outlier rejection and inlier retention. Lower thresholds reject valid correspondences due to minor lens distortion, while higher thresholds allow mismatch alignments that create discontinuities at stitched boundaries.
 3. **Distance-Transform Blending over Simple Averaging**: Simple averaging creates sharp seams and ghosting artifacts at overlapping boundaries. We compute a normalized L2 Euclidean distance-transform weight map on the mask of each warped frame, reducing edge weights to zero and preventing background interpolation bleed.
-4. **ResNet18 Chosen as Active Model over MobileNetV2**: Although MobileNetV2 achieved a slightly higher test accuracy (92.80% vs 92.77%) with a 5x smaller parameter footprint (2.23M vs 11.18M) and 2.4x higher throughput, ResNet18 was retained as the active model. ResNet18's residual skip-connections and higher-dimensional representation space produce more stable, spatially localized Grad-CAM activations, making model predictions easier to interpret.
+4. **ResNet18 as Active Model**: ResNet18 was selected as the active classification model. Its residual skip-connections and feature representation space produce highly stable, spatially localized Grad-CAM activation maps, making its visual predictions easy to interpret.
 
 ---
 

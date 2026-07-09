@@ -34,11 +34,21 @@ const Overview: React.FC = () => {
 
   const { baseline_metrics, backbone_comparison } = data;
 
-  // Compile comparison rows for sorting
-  const rows = [
-    { name: 'resnet18 (Active)', ...backbone_comparison.resnet18 },
-    { name: 'mobilenetv2', ...backbone_comparison.mobilenetv2 }
-  ];
+  // Compile comparison rows dynamically based on what backbones are returned by the backend
+  const rows = Object.keys(backbone_comparison)
+    .filter(key => backbone_comparison[key as keyof typeof backbone_comparison] !== undefined)
+    .map(key => {
+      const data = backbone_comparison[key as keyof typeof backbone_comparison];
+      return {
+        name: key === 'resnet18' ? 'resnet18 (Active)' : key,
+        accuracy: data?.accuracy || 0,
+        f1_score: data?.f1_score || 0,
+        params_m: data?.params_m || 0,
+        size_mb: data?.size_mb || 0,
+        speed_fps: data?.speed_fps || 0,
+        train_time_sec: data?.train_time_sec || 0
+      };
+    });
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -205,6 +215,9 @@ const Overview: React.FC = () => {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="mt-4 text-xs text-gray-400 italic">
+          * Measured on Intel test split, Kaggle T4 GPU, backbone frozen / linear-probe only — see notebooks/percv_kaggle.ipynb cells 14–18.
         </div>
       </div>
 

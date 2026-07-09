@@ -46,8 +46,7 @@ async def get_dashboard_summary():
 
     # Compile backbone comparison table
     backbone_comparison = {
-        "resnet18": baseline_data.get("task4", {}).get("resnet18", {}),
-        "mobilenetv2": baseline_data.get("task4", {}).get("mobilenetv2", {})
+        "resnet18": baseline_data.get("task4", {}).get("resnet18", {})
     }
 
     return DashboardResponse(

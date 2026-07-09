@@ -45,7 +45,7 @@ export interface DashboardResponse {
       speed_fps: number;
       train_time_sec: number;
     };
-    mobilenetv2: {
+    mobilenetv2?: {
       accuracy: number;
       f1_score: number;
       params_m: number;
